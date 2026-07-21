@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+/generated/prisma
+
+# AI Agents & IDE tools
+.agents/
+skills-lock.json
+# Carpeta de configuración de Claude
+.claude/
+# Carpeta de configuración de Windsurf
+.windsurf/
