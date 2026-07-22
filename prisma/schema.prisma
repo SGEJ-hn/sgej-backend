@@ -1,13 +1,155 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+}
+
+// 1. Configuración del Sistema
+model ConfiguracionSistema {
+  id_configuracion         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre_bufete            String  @db.VarChar(150)
+  cedula_rtn               String  @db.VarChar(50)
+  sitio_web                String? @db.VarChar(150)
+  telefono                 String? @db.VarChar(50)
+  correo_electronico       String? @db.VarChar(150)
+  direccion                String? @db.VarChar(255)
+  descripcion_bufete       String? @db.Text
+  notificaciones_push      Boolean @default(true)
+  recordatorios_audiencias Boolean @default(true)
+  tiempo_inactividad_min   Int     @default(30)
+  longitud_min_contrasena  Int     @default(10)
+  intentos_max_login       Int     @default(5)
+  duracion_bloqueo_min     Int     @default(15)
+  requerir_2fa             Boolean @default(false)
+}
+
+// 2. Usuarios
+model Usuario {
+  id_usuario    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre        String    @db.VarChar(150)
+  correo        String    @unique @db.VarChar(150)
+  contrasena    String    @db.VarChar(255)
+  rol           String    @db.VarChar(50)
+  estado        String    @db.VarChar(30)
+  ultimo_acceso DateTime?
+
+  expedientes_cliente Expediente[]          @relation("ClienteExpediente")
+  equipo_asignado     ExpedienteEquipo[]
+  historial_acciones  HistorialExpediente[]
+  reportes_generados  ReporteGenerado[]
+}
+
+// 3. Expedientes
+model Expediente {
+  id_expediente      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numero_expediente  String   @unique @db.VarChar(50)
+  id_cliente         String   @db.Uuid
+  materia            String   @db.VarChar(50)
+  estado             String   @db.VarChar(50)
+  tribunal_juzgado   String   @db.VarChar(150)
+  juez_cargo         String?  @db.VarChar(150)
+  cuantia_litigio    Decimal? @db.Decimal(18, 2)
+  fecha_apertura     DateTime @db.Date
+  descripcion_hechos String   @db.Text
+
+  cliente             Usuario               @relation("ClienteExpediente", fields: [id_cliente], references: [id_usuario])
+  equipo              ExpedienteEquipo[]
+  partes_involucradas ParteInvolucrada[]
+  citas               Cita[]
+  documentos          Documento[]
+  historial           HistorialExpediente[]
+}
+
+// 4. Equipo Asignado al Expediente (Tabla Pivote N:M)
+model ExpedienteEquipo {
+  id_asignacion String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_expediente String @db.Uuid
+  id_usuario    String @db.Uuid
+  rol_en_caso   String @db.VarChar(50)
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], onDelete: Cascade)
+  user       Usuario    @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+// 5. Partes Involucradas
+model ParteInvolucrada {
+  id_parte        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_expediente   String  @db.Uuid
+  clasificacion   String  @db.VarChar(50)
+  tipo_persona    String  @db.VarChar(30)
+  nombre_completo String  @db.VarChar(150)
+  identificacion  String? @db.VarChar(50)
+  representante   String? @db.VarChar(150)
+  correo_contacto String? @db.VarChar(150)
+  direccion       String? @db.VarChar(255)
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], onDelete: Cascade)
+}
+
+// 6. Citas y Audiencias
+model Cita {
+  id_cita                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_expediente           String?  @db.Uuid
+  titulo                  String   @db.VarChar(150)
+  tipo_cita               String   @db.VarChar(50)
+  lugar_sala              String   @db.VarChar(150)
+  fecha                   DateTime @db.Date
+  hora_inicio             DateTime @db.Time
+  duracion_estimada       String?  @db.VarChar(50)
+  notas_recordatorio      String?  @db.Text
+  recordatorio_automatico Boolean  @default(true)
+
+  expediente    Expediente?        @relation(fields: [id_expediente], references: [id_expediente], onDelete: SetNull)
+  participantes CitaParticipante[]
+}
+
+// 7. Participantes de la Cita
+model CitaParticipante {
+  id_cita_participante String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cita              String @db.Uuid
+  nombre_participante  String @db.VarChar(150)
+
+  cita Cita @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
+}
+
+// 8. Documentos
+model Documento {
+  id_documento     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_expediente    String   @db.Uuid
+  nombre_documento String   @db.VarChar(150)
+  categoria        String   @db.VarChar(50)
+  url_archivo      String   @db.VarChar(500)
+  tamano_mb        Float
+  fecha_carga      DateTime @default(now())
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], onDelete: Cascade)
+}
+
+// 9. Historial del Expediente
+model HistorialExpediente {
+  id_historial       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_expediente      String   @db.Uuid
+  id_autor           String   @db.Uuid
+  categoria_evento   String   @db.VarChar(50)
+  titulo_evento      String   @db.VarChar(150)
+  descripcion        String   @db.Text
+  fecha_modificacion DateTime @default(now())
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], onDelete: Cascade)
+  autor      Usuario    @relation(fields: [id_autor], references: [id_usuario])
+}
+
+// 10. Reportes Generados
+model ReporteGenerado {
+  id_reporte           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre_reporte       String   @db.VarChar(150)
+  tipo_reporte         String   @db.VarChar(50)
+  id_usuario_generador String   @db.Uuid
+  fecha_generacion     DateTime @default(now())
+  formato              String   @db.VarChar(20)
+  url_archivo          String?  @db.VarChar(500)
+
+  usuario_generador Usuario @relation(fields: [id_usuario_generador], references: [id_usuario])
 }
