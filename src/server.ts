@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pkg from 'pg';
+import documentoRoutes from './routes/documento.routes';
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ app.get('/api/usuarios', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Error al conectar con la base de datos de Supabase' });
     }
 });
+
+// Rutas de la API
+app.use('/api/documentos', documentoRoutes);
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
