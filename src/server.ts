@@ -19,7 +19,15 @@ const prisma = new PrismaClient({ adapter });
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://sgej-frontend.vercel.app',
+    'http://localhost:4200'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Ruta de prueba para verificar conexión y la base de datos de Supabase
