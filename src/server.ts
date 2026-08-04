@@ -5,6 +5,8 @@ import { prisma } from './config/db';
 import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
 
+import citasRoutes from './routes/citas.routes';
+
 dotenv.config();
 
 const app: Application = express();
@@ -13,7 +15,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: [
     'https://sgej-frontend.vercel.app',
-    'http://localhost:4200'
+    'http://localhost:4200',
+    'http://localhost:22562'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -36,6 +39,7 @@ app.get('/api/health', async (req: Request, res: Response) => {
 // Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/documentos', documentoRoutes);
+app.use('/api/citas', citasRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
