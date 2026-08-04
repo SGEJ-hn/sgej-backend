@@ -1,17 +1,19 @@
 import { Router } from 'express';
 import {
   createExpediente,
+  getExpedientes,
   getExpediente,
   updateExpediente,
-  getExpedientes,
+  deleteExpediente,
 } from '../controllers/expediente.controller';
 
 const router = Router();
 
-// Rutas base para expedientes
-router.get('/', getExpedientes);
-router.post('/', createExpediente);
-router.get('/:id', getExpediente);
-router.put('/:id', updateExpediente);
+// Rutas CRUD para expedientes
+router.get('/', getExpedientes);          // Listar todos (con filtros opcionales)
+router.post('/', createExpediente);       // Crear nuevo expediente
+router.get('/:id', getExpediente);        // Obtener uno por ID
+router.put('/:id', updateExpediente);     // Actualizar por ID
+router.delete('/:id', deleteExpediente);  // Eliminar por ID
 
 export default router;
