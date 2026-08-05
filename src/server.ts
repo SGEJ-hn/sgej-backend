@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { prisma } from './config/db';
 import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
+import expedienteRoutes from './routes/expedientes.routes';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.get('/api/health', async (req: Request, res: Response) => {
 // Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/documentos', documentoRoutes);
+app.use('/api/expedientes', expedienteRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
