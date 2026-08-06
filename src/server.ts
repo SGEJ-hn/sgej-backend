@@ -4,8 +4,11 @@ import dotenv from 'dotenv';
 import { prisma } from './config/db';
 import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
+import expedienteRoutes from './routes/expedientes.routes';
 
 import citasRoutes from './routes/citas.routes';
+import notificationRoutes from './routes/notification.routes';
+import { CronService } from './services/cron.service';
 
 dotenv.config();
 
@@ -40,7 +43,12 @@ app.get('/api/health', async (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/documentos', documentoRoutes);
 app.use('/api/citas', citasRoutes);
+app.use('/api/notificaciones', notificationRoutes);
+app.use('/api/expedientes', expedienteRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
+ 
+  // Encendemos el motor de tareas automáticas
+  CronService.iniciarTareasProgramadas();
 });

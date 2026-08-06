@@ -9,6 +9,7 @@ import {
 } from '../services/cita.service';
 
 import { AuthenticatedRequest } from '../middlewares/auth';
+import { NotificationService } from '../services/notification.service';
 
 
 // Obtener citas
@@ -120,31 +121,38 @@ export const postCita = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-
   try {
+    // 1. Tu lógica original para crear la cita
+    const nuevaCita = await crearCita(req.body);
 
-    const nuevaCita = await crearCita(
-      req.body
-    );
+    // 2. NUEVO: Disparar la notificación
+    // Nos aseguramos de que la cita esté asociada a un expediente antes de notificar
+    if (nuevaCita.id_expediente) {
+      // Formateamos la fecha para que se vea bien en el texto
+      const fechaFormateada = new Date(nuevaCita.fecha).toLocaleDateString('es-ES');
+      
+      // Llamamos a nuestro servicio de notificaciones sin bloquear la respuesta al usuario
+      await NotificationService.notificarEventoExpediente(
+        nuevaCita.id_expediente,
+        'Nueva Cita Agendada',
+        `Se ha agendado la cita "${nuevaCita.titulo}" para el día ${fechaFormateada} en ${nuevaCita.lugar_sala}.`,
+        'cita', 
+        `/expedientes/${nuevaCita.id_expediente}/citas` 
+      );
+    }
 
+    // 3. Tu respuesta original al cliente
     return res.status(201).json({
       mensaje: 'Cita creada correctamente',
       cita: nuevaCita
     });
 
   } catch (error) {
-
-    console.error(
-      'Error al crear la cita:',
-      error
-    );
-
+    console.error('Error al crear la cita:', error);
     return res.status(500).json({
       mensaje: 'Error al crear la cita'
     });
-
   }
-
 };
 
 
