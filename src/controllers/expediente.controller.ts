@@ -73,7 +73,7 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
 // ─────────────────────────────────────────────
 export const getExpedientes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { estado, materia, buscar } = req.query;
+const { estado, materia, buscar } = req.query as { estado?: string; materia?: string; buscar?: string };
 
     const expedientes = await prisma.expediente.findMany({
       where: {
@@ -114,7 +114,7 @@ export const getExpedientes = async (req: Request, res: Response): Promise<void>
 // ─────────────────────────────────────────────
 export const getExpediente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
 
     const expediente = await prisma.expediente.findUnique({
       where: { id_expediente: id },
@@ -156,7 +156,7 @@ export const getExpediente = async (req: Request, res: Response): Promise<void> 
 // ─────────────────────────────────────────────
 export const updateExpediente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const {
       materia,
       estado,
@@ -206,7 +206,7 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
 // ─────────────────────────────────────────────
 export const deleteExpediente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
 
     // Verificar que el expediente existe
     const existente = await prisma.expediente.findUnique({
