@@ -5,6 +5,12 @@ import { prisma } from './config/db';
 import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
 import expedienteRoutes from './routes/expedientes.routes';
+import usuarioRoutes from './routes/usuarios.routes';
+import expedienteRoutes from './routes/expedientes.routes';
+
+import citasRoutes from './routes/citas.routes';
+import notificationRoutes from './routes/notification.routes';
+import { CronService } from './services/cron.service';
 
 dotenv.config();
 
@@ -14,7 +20,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: [
     'https://sgej-frontend.vercel.app',
-    'http://localhost:4200'
+    'http://localhost:4200',
+    'http://localhost:22562'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -23,7 +30,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Ruta de prueba para verificar conexión y usuarios
+// Ruta de prueba para verificar conexión y estado del servidor
 app.get('/api/health', async (req: Request, res: Response) => {
   try {
     const totalUsuarios = await prisma.usuario.count();
@@ -34,12 +41,19 @@ app.get('/api/health', async (req: Request, res: Response) => {
   }
 });
 
-// Rutas de la API
+// Rutas de la API protegidas
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/documentos', documentoRoutes);
 app.use('/api/expedientes', expedienteRoutes);
 
+app.use('/api/citas', citasRoutes);
+app.use('/api/notificaciones', notificationRoutes);
+app.use('/api/expedientes', expedienteRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
+ 
+  // Encendemos el motor de tareas automáticas
+  CronService.iniciarTareasProgramadas();
 });
