@@ -7,7 +7,7 @@ import { prisma } from '../config/db';
  */
 export const obtenerUsuarios = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { rol, estado, busqueda } = req.query;
+    const { rol, estado, busqueda } = req.query as { rol?: string; estado?: string; busqueda?: string };
 
     const whereClause: any = {};
 
@@ -51,7 +51,7 @@ export const obtenerUsuarios = async (req: Request, res: Response): Promise<void
  */
 export const obtenerUsuarioPorId = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
 
     const usuario = await prisma.usuario.findUnique({
       where: { id_usuario: id },
@@ -136,7 +136,7 @@ export const crearUsuario = async (req: Request, res: Response): Promise<void> =
  */
 export const actualizarUsuario = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { nombre, correo, rol, estado, contrasena } = req.body;
 
     const usuarioExiste = await prisma.usuario.findUnique({
@@ -185,7 +185,7 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
  */
 export const eliminarUsuario = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
 
     const usuarioExiste = await prisma.usuario.findUnique({
       where: { id_usuario: id },
