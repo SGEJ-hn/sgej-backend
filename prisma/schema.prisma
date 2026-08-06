@@ -35,10 +35,17 @@ model Usuario {
   estado        String    @db.VarChar(30)
   ultimo_acceso DateTime?
 
-  expedientes_cliente Expediente[]          @relation("ClienteExpediente")
-  equipo_asignado     ExpedienteEquipo[]
-  historial_acciones  HistorialExpediente[]
-  reportes_generados  ReporteGenerado[]
+  // --- NUEVAS COLUMNAS PARA PREFERENCIAS DE CORREO ---
+  recibir_alertas_correo Boolean @default(true)
+  recibir_boletines      Boolean @default(false)
+
+  expedientes_cliente  Expediente[]          @relation("ClienteExpediente")
+  equipo_asignado      ExpedienteEquipo[]
+  historial_acciones   HistorialExpediente[]
+  reportes_generados   ReporteGenerado[]
+  
+  // --- NUEVA RELACIÓN PARA LAS NOTIFICACIONES ---
+  notificaciones       Notificacion[]
 }
 
 // 3. Expedientes
@@ -152,4 +159,19 @@ model ReporteGenerado {
   url_archivo          String?  @db.VarChar(500)
 
   usuario_generador Usuario @relation(fields: [id_usuario_generador], references: [id_usuario])
+}
+
+// 11. Notificaciones y Avisos
+model Notificacion {
+  id_notificacion   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario        String   @db.Uuid
+  titulo            String   @db.VarChar(150)
+  mensaje           String   @db.Text
+  tipo              String   @db.VarChar(50)
+  enlace_referencia String?  @db.VarChar(255)
+  leida             Boolean  @default(false)
+  fecha_creacion    DateTime @default(now())
+
+  // Relación con el usuario: Si se elimina el usuario, se borran sus notificaciones (Cascade)
+  usuario           Usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
 }

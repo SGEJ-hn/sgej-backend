@@ -72,3 +72,98 @@ export const subirDocumento = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
+
+export const obtenerDocumentosPorExpediente = async (req: Request, res: Response) => {
+  try {
+    const { id_expediente } = req.params as { id_expediente: string };
+
+    if (!id_expediente) {
+      return res.status(400).json({ error: 'El id_expediente es obligatorio.' });
+    }
+
+    const documentos = await prisma.documento.findMany({
+      where: {
+        id_expediente: id_expediente,
+      },
+      orderBy: {
+        fecha_carga: 'desc', 
+      },
+    });
+
+    return res.status(200).json({ documentos });
+  } catch (error) {
+    console.error('Error al obtener documentos:', error);
+    return res.status(500).json({ error: 'Error interno del servidor al consultar documentos.' });
+  }
+};
+
+export const eliminarDocumento = async (req: Request, res: Response) => {
+  try {
+    
+    const { id_documento } = req.params as { id_documento: string };
+
+    if (!id_documento) {
+      return res.status(400).json({ error: 'El id_documento es obligatorio.' });
+    }
+
+    const documento = await prisma.documento.findUnique({
+      where: { id_documento: id_documento },
+    });
+
+    if (!documento) {
+      return res.status(404).json({ error: 'Documento no encontrado en la base de datos.' });
+    }
+
+    const urlParts = documento.url_archivo.split('/expedientes_documentos/');
+    const filePath = urlParts.length > 1 ? urlParts[1] : null;
+
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from('expedientes_documentos')
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error('Error eliminando de Supabase:', storageError);
+        return res.status(500).json({ error: 'No se pudo eliminar el archivo de la nube.' });
+      }
+    }
+    await prisma.documento.delete({
+      where: { id_documento: id_documento },
+    });
+
+    return res.status(200).json({ mensaje: 'Documento eliminado exitosamente.' });
+  } catch (error) {
+    console.error('Error al eliminar documento:', error);
+    return res.status(500).json({ error: 'Error interno del servidor al eliminar.' });
+  }
+};
+
+// Agrega esto al final de tu documento.controller.ts
+
+export const actualizarDocumento = async (req: Request, res: Response) => {
+  try {
+    const { id_documento } = req.params as { id_documento: string };
+    const { nombre_documento, categoria } = req.body;
+
+    if (!id_documento) {
+      return res.status(400).json({ error: 'El id_documento es obligatorio.' });
+    }
+
+    // Actualizamos el registro en la base de datos con Prisma
+    const documentoActualizado = await prisma.documento.update({
+      where: { id_documento: id_documento },
+      data: {
+        ...(nombre_documento && { nombre_documento }),
+        ...(categoria && { categoria }),
+      },
+    });
+
+    return res.status(200).json({ 
+      mensaje: 'Documento actualizado exitosamente.',
+      documento: documentoActualizado
+    });
+  } catch (error) {
+    console.error('Error al actualizar documento:', error);
+    return res.status(500).json({ error: 'Error interno del servidor al actualizar el documento.' });
+  }
+};
