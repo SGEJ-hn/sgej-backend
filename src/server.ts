@@ -6,8 +6,6 @@ import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
 import expedienteRoutes from './routes/expedientes.routes';
 import usuarioRoutes from './routes/usuarios.routes';
-import expedienteRoutes from './routes/expedientes.routes';
-
 import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
 import { CronService } from './services/cron.service';
