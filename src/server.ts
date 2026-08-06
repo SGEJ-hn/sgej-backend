@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { prisma } from './config/db';
 import documentoRoutes from './routes/documento.routes';
 import authRoutes from './routes/auth.routes';
+import expedienteRoutes from './routes/expedientes.routes';
 import usuarioRoutes from './routes/usuarios.routes';
 import expedienteRoutes from './routes/expedientes.routes';
 
@@ -44,6 +45,8 @@ app.get('/api/health', async (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/documentos', documentoRoutes);
+app.use('/api/expedientes', expedienteRoutes);
+
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
 app.use('/api/expedientes', expedienteRoutes);
