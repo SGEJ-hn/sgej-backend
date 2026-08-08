@@ -10,6 +10,8 @@ import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
 import { CronService } from './services/cron.service';
 
+import reportesRoutes from './routes/reportes.routes';
+
 dotenv.config();
 
 const app: Application = express();
@@ -48,6 +50,10 @@ app.use('/api/expedientes', expedienteRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
 app.use('/api/expedientes', expedienteRoutes);
+
+
+app.use('/api/reportes', reportesRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
