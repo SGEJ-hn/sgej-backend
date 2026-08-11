@@ -4,10 +4,13 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pkg from 'pg';
 
+import { registrarEventoHistorial } from '../services/historial.service';
+
 const { Pool } = pkg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+
 const sanitizeFilename = (filename: string): string => {
   return filename
     .normalize("NFD") 
@@ -15,10 +18,22 @@ const sanitizeFilename = (filename: string): string => {
     .replace(/[^a-zA-Z0-9.-]/g, "_");
 };
 
+// Función auxiliar segura para extraer el ID del usuario
+const obtenerIdUsuario = (req: Request): string | null => {
+  const reqAny = req as any;
+  return (
+    reqAny.usuario?.id_usuario ||
+    reqAny.user?.id_usuario ||
+    reqAny.body?.id_autor ||
+    null
+  );
+};
+
 export const subirDocumento = async (req: Request, res: Response) => {
   try {
     const file = req.file;
     const { id_expediente, categoria, nombre_documento } = req.body;
+    const id_autor = obtenerIdUsuario(req);
 
     if (!file) {
       return res.status(400).json({ error: 'No se adjuntó ningún archivo.' });
@@ -53,6 +68,7 @@ export const subirDocumento = async (req: Request, res: Response) => {
 
     const fileUrl = publicUrlData.publicUrl;
     const sizeInMB = parseFloat((file.size / (1024 * 1024)).toFixed(2));
+
     const nuevoDocumento = await prisma.documento.create({
       data: {
         id_expediente: id_expediente,
@@ -62,6 +78,19 @@ export const subirDocumento = async (req: Request, res: Response) => {
         tamano_mb: sizeInMB,
       },
     });
+
+    // 🌟 Registro en Historial
+    if (id_autor) {
+      await registrarEventoHistorial({
+        id_expediente: id_expediente,
+        id_autor: id_autor,
+        categoria_evento: 'Documentos',
+        titulo_evento: nuevoDocumento.nombre_documento,
+        descripcion: `Se adjuntó el documento "${nuevoDocumento.nombre_documento}" en la categoría ${categoria}.`,
+      });
+    } else {
+      console.warn('[Historial] No se registró el evento porque no se encontró el id_autor del usuario.');
+    }
 
     return res.status(201).json({
       mensaje: 'Documento subido y registrado exitosamente',
@@ -76,21 +105,64 @@ export const subirDocumento = async (req: Request, res: Response) => {
 export const obtenerDocumentosPorExpediente = async (req: Request, res: Response) => {
   try {
     const { id_expediente } = req.params as { id_expediente: string };
+    
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string || '';
+    const skip = (page - 1) * limit;
 
     if (!id_expediente) {
       return res.status(400).json({ error: 'El id_expediente es obligatorio.' });
     }
 
+    const dondeFiltro: any = {
+      id_expediente: id_expediente,
+    };
+
+    if (search.trim() !== '') {
+      dondeFiltro.OR = [
+        { nombre_documento: { contains: search, mode: 'insensitive' } },
+        { categoria: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const totalRegistros = await prisma.documento.count({
+      where: dondeFiltro,
+    });
+    const totalPaginas = Math.ceil(totalRegistros / limit);
+
     const documentos = await prisma.documento.findMany({
-      where: {
-        id_expediente: id_expediente,
-      },
+      where: dondeFiltro, 
+      skip: skip,
+      take: limit,
       orderBy: {
         fecha_carga: 'desc', 
       },
     });
 
-    return res.status(200).json({ documentos });
+    const expedienteInfo = await prisma.expediente.findUnique({
+      where: { id_expediente },
+      select: { 
+        numero_expediente: true,
+        partes_involucradas: {
+          where: { clasificacion: 'Demandante' },
+          select: { nombre_completo: true },
+          take: 1
+        }
+      }
+    });
+
+    const numExp = expedienteInfo?.numero_expediente || 'Número no encontrado';
+    const nombreCliente = expedienteInfo?.partes_involucradas?.[0]?.nombre_completo || 'Sin Cliente Asignado';
+
+    return res.status(200).json({ 
+      total: totalRegistros,
+      total_paginas: totalPaginas,
+      pagina_actual: page,
+      documentos,
+      numero_expediente: numExp,
+      nombre_cliente: nombreCliente
+    });
   } catch (error) {
     console.error('Error al obtener documentos:', error);
     return res.status(500).json({ error: 'Error interno del servidor al consultar documentos.' });
@@ -99,8 +171,8 @@ export const obtenerDocumentosPorExpediente = async (req: Request, res: Response
 
 export const eliminarDocumento = async (req: Request, res: Response) => {
   try {
-    
     const { id_documento } = req.params as { id_documento: string };
+    const id_autor = obtenerIdUsuario(req);
 
     if (!id_documento) {
       return res.status(400).json({ error: 'El id_documento es obligatorio.' });
@@ -127,9 +199,23 @@ export const eliminarDocumento = async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'No se pudo eliminar el archivo de la nube.' });
       }
     }
+
     await prisma.documento.delete({
       where: { id_documento: id_documento },
     });
+
+    // 🌟 Registro en Historial
+    if (id_autor) {
+      await registrarEventoHistorial({
+        id_expediente: documento.id_expediente,
+        id_autor: id_autor,
+        categoria_evento: 'Documentos',
+        titulo_evento: 'Documento Eliminado',
+        descripcion: `Se eliminó el documento "${documento.nombre_documento}".`,
+      });
+    } else {
+      console.warn('[Historial] No se registró la eliminación porque no se encontró el id_autor del usuario.');
+    }
 
     return res.status(200).json({ mensaje: 'Documento eliminado exitosamente.' });
   } catch (error) {
@@ -138,18 +224,16 @@ export const eliminarDocumento = async (req: Request, res: Response) => {
   }
 };
 
-// Agrega esto al final de tu documento.controller.ts
-
 export const actualizarDocumento = async (req: Request, res: Response) => {
   try {
     const { id_documento } = req.params as { id_documento: string };
     const { nombre_documento, categoria } = req.body;
+    const id_autor = obtenerIdUsuario(req);
 
     if (!id_documento) {
       return res.status(400).json({ error: 'El id_documento es obligatorio.' });
     }
 
-    // Actualizamos el registro en la base de datos con Prisma
     const documentoActualizado = await prisma.documento.update({
       where: { id_documento: id_documento },
       data: {
@@ -157,6 +241,19 @@ export const actualizarDocumento = async (req: Request, res: Response) => {
         ...(categoria && { categoria }),
       },
     });
+
+    // 🌟 Registro en Historial
+    if (id_autor) {
+      await registrarEventoHistorial({
+        id_expediente: documentoActualizado.id_expediente,
+        id_autor: id_autor,
+        categoria_evento: 'Documentos',
+        titulo_evento: 'Documento Modificado',
+        descripcion: `Se actualizaron los datos del documento "${documentoActualizado.nombre_documento}".`,
+      });
+    } else {
+      console.warn('[Historial] No se registró la actualización porque no se encontró el id_autor del usuario.');
+    }
 
     return res.status(200).json({ 
       mensaje: 'Documento actualizado exitosamente.',
