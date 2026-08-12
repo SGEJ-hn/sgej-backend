@@ -18,11 +18,14 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: [
-    'https://sgej-frontend.vercel.app',
-    'http://localhost:4200',
-    'http://localhost:22562'
-  ],
+  origin: (origin, callback) => {
+    // Permitir solicitudes sin origin (como Postman o Server-to-Server) y cualquier subdominio vercel.app o localhost
+    if (!origin || origin.endsWith('.vercel.app') || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
