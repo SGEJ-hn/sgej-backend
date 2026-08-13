@@ -4,13 +4,14 @@ import dotenv from 'dotenv';
 // Asegurarnos de que las variables de entorno estén cargadas
 dotenv.config();
 
-// Inicializamos Resend con la clave de tu .env (tolerante si no existe)
-const apiKey = process.env.RESEND_API_KEY || 're_placeholder';
+// Inicializamos Resend con la clave de tu .env (tolerante si no existe para evitar caídas del servidor)
+const apiKey = process.env.RESEND_API_KEY || 're_dummy_key_for_dev';
+
 if (!process.env.RESEND_API_KEY) {
   console.warn('[EmailService] ⚠️ RESEND_API_KEY no configurada. Los correos no se enviarán.');
 }
-// Inicializamos Resend de forma segura (con fallback para evitar cierres del servidor si no hay API key en .env)
-const apiKey = process.env.RESEND_API_KEY || 're_dummy_key_for_dev';
+
+// Inicializamos la instancia de Resend
 const resend = new Resend(apiKey);
 
 export class EmailService {

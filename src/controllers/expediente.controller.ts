@@ -16,7 +16,12 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
       cuantia_litigio,
       fecha_apertura,
       descripcion_hechos,
+      equipo,                // <-- Recibimos el arreglo de equipo
+      partes,                // <-- Recibimos las partes enviadas desde Angular
+      partes_involucradas    // <-- Soporte por si viene con este nombre
     } = req.body;
+
+    const listaPartes = partes || partes_involucradas;
 
     // Validación de campos obligatorios
     if (!numero_expediente || !id_cliente || !materia || !estado || !tribunal_juzgado || !fecha_apertura || !descripcion_hechos) {
@@ -42,6 +47,7 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Creación del expediente con relaciones anidadas
     const expediente = await prisma.expediente.create({
       data: {
         numero_expediente,
@@ -53,11 +59,41 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
         cuantia_litigio: cuantia_litigio ?? null,
         fecha_apertura: new Date(fecha_apertura),
         descripcion_hechos,
+        
+        // Guardar integrantes del equipo (Abogado y Paralegales)
+        ...(equipo && equipo.length > 0 && {
+          equipo: {
+            create: equipo.map((m: any) => ({
+              id_usuario: m.id_usuario,
+              rol_en_caso: m.rol_en_caso
+            }))
+          }
+        }),
+
+        // Guardar partes involucradas (Demandante y Demandado)
+        ...(listaPartes && listaPartes.length > 0 && {
+          partes_involucradas: {
+            create: listaPartes.map((p: any) => ({
+              clasificacion: p.clasificacion,
+              tipo_persona: p.tipo_persona,
+              nombre_completo: p.nombre_completo,
+              identificacion: p.identificacion ?? null,
+              correo_contacto: p.correo_contacto ?? null,
+              direccion: p.direccion ?? null
+            }))
+          }
+        })
       },
       include: {
         cliente: {
           select: { id_usuario: true, nombre: true, correo: true },
         },
+        equipo: {
+          include: {
+            user: { select: { id_usuario: true, nombre: true, rol: true } },
+          },
+        },
+        partes_involucradas: true,
       },
     });
 
@@ -73,7 +109,7 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
 // ─────────────────────────────────────────────
 export const getExpedientes = async (req: Request, res: Response): Promise<void> => {
   try {
-const { estado, materia, buscar } = req.query as { estado?: string; materia?: string; buscar?: string };
+    const { estado, materia, buscar } = req.query as { estado?: string; materia?: string; buscar?: string };
 
     const expedientes = await prisma.expediente.findMany({
       where: {
@@ -98,6 +134,7 @@ const { estado, materia, buscar } = req.query as { estado?: string; materia?: st
             user: { select: { id_usuario: true, nombre: true, rol: true } },
           },
         },
+        partes_involucradas: true, // <-- AGREGADO: Ahora el listado sí devolverá al Demandante
       },
       orderBy: { fecha_apertura: 'desc' },
     });
@@ -191,6 +228,12 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
         cliente: {
           select: { id_usuario: true, nombre: true, correo: true },
         },
+        equipo: {
+          include: {
+            user: { select: { id_usuario: true, nombre: true, rol: true } },
+          },
+        },
+        partes_involucradas: true,
       },
     });
 
