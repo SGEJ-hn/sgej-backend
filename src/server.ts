@@ -8,6 +8,7 @@ import expedienteRoutes from './routes/expedientes.routes';
 import usuarioRoutes from './routes/usuarios.routes';
 import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
+import configuracionRoutes from './routes/configuracion.routes';
 import { CronService } from './services/cron.service';
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.use('/api/expedientes', expedienteRoutes);
 
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
+app.use('/api/configuracion', configuracionRoutes);
 app.use('/api/expedientes', expedienteRoutes);
 
 app.listen(PORT, () => {
