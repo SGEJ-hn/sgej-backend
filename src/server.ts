@@ -8,6 +8,7 @@ import expedienteRoutes from './routes/expedientes.routes';
 import usuarioRoutes from './routes/usuarios.routes';
 import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
+import configuracionRoutes from './routes/configuracion.routes';
 import reportesRoutes from './routes/reportes.routes';
 import historialRoutes from './routes/historial.routes'; // 👈 1. Importación agregada
 import { CronService } from './services/cron.service';
@@ -51,6 +52,8 @@ app.use('/api/documentos', documentoRoutes);
 app.use('/api/expedientes', expedienteRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
+app.use('/api/configuracion', configuracionRoutes);
+app.use('/api/expedientes', expedienteRoutes);
 app.use('/api/reportes', reportesRoutes);
 
 // 👈 2. Ruta del Historial registrada
