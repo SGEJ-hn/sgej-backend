@@ -4,8 +4,15 @@ import dotenv from 'dotenv';
 // Asegurarnos de que las variables de entorno estén cargadas
 dotenv.config();
 
-// Inicializamos Resend con la clave de tu .env
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Inicializamos Resend con la clave de tu .env (tolerante si no existe para evitar caídas del servidor)
+const apiKey = process.env.RESEND_API_KEY || 're_dummy_key_for_dev';
+
+if (!process.env.RESEND_API_KEY) {
+  console.warn('[EmailService] ⚠️ RESEND_API_KEY no configurada. Los correos no se enviarán.');
+}
+
+// Inicializamos la instancia de Resend
+const resend = new Resend(apiKey);
 
 export class EmailService {
   /**
@@ -16,6 +23,11 @@ export class EmailService {
    */
   static async enviarCorreoNotificacion(destinatario: string, asunto: string, htmlContent: string) {
     try {
+      if (!process.env.RESEND_API_KEY) {
+        console.warn(`[EmailService] RESEND_API_KEY no configurada en .env. Se omite el envío a ${destinatario}.`);
+        return null;
+      }
+
       const data = await resend.emails.send({
         // IMPORTANTE: Mientras estés en pruebas gratuitas, Resend exige usar 'onboarding@resend.dev' como remitente.
         // Cuando compres un dominio real, esto se cambia a algo como 'notificaciones@justiceattorneylaw.com'

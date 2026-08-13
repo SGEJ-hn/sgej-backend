@@ -8,12 +8,18 @@ import {
     deleteExpediente,
     asignarUsuarioExpediente,
 } from '../controllers/expediente.controller';
+import { obtenerHistorialExpediente } from '../controllers/historial.controller';
 
 import { verificarToken } from '../middlewares/auth';
 import { audit } from '../middlewares/audit';
 
 const router = Router();
 
+router.post('/', verificarToken, audit, createExpediente);
+
+router.get('/', verificarToken, getExpedientes);
+
+router.get('/:id', verificarToken, getExpediente);
 // ─────────────────────────────────────────────
 // GET /api/expedientes
 // Listar expedientes
@@ -77,5 +83,7 @@ router.post(
     audit,
     asignarUsuarioExpediente
 );
+
+router.get('/:id/historial',  obtenerHistorialExpediente);
 
 export default router;
