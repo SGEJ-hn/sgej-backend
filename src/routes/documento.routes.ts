@@ -4,21 +4,25 @@ import {
   subirDocumento, 
   obtenerDocumentosPorExpediente, 
   eliminarDocumento,
-  actualizarDocumento // <-- 1. Importamos el nuevo controlador
+  actualizarDocumento 
 } from '../controllers/documento.controller';
+
+// 🌟 Importa tu middleware de autenticación
+// (Ajusta el nombre del archivo y función según tu estructura de middlewares)
+import { verificarToken } from '../middlewares/auth'; 
 
 const router = Router();
 
-// POST: Subir documento
-router.post('/upload', upload.single('archivo'), subirDocumento);
+// POST: Subir documento (Requiere token para extraer el id_usuario)
+router.post('/upload', verificarToken, upload.single('archivo'), subirDocumento);
 
 // GET: Obtener documentos de un expediente
-router.get('/expediente/:id_expediente', obtenerDocumentosPorExpediente);
+router.get('/expediente/:id_expediente', verificarToken, obtenerDocumentosPorExpediente);
 
 // DELETE: Eliminar documento
-router.delete('/:id_documento', eliminarDocumento);
+router.delete('/:id_documento', verificarToken, eliminarDocumento);
 
 // PATCH: Actualizar nombre y/o categoría del documento
-router.patch('/:id_documento', actualizarDocumento); 
+router.patch('/:id_documento', verificarToken, actualizarDocumento); 
 
 export default router;

@@ -4,11 +4,6 @@ import { NotificationService } from './notification.service';
 
 
 export class CronService {
-  
-  /**
-   * Inicializa todas las tareas en segundo plano del sistema.
-   * Se debe llamar una sola vez al arrancar el servidor.
-   */
   static iniciarTareasProgramadas() {
     console.log('[CronService] Motor de tareas automáticas iniciado.');
 

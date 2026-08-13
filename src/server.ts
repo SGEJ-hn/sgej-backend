@@ -9,6 +9,8 @@ import usuarioRoutes from './routes/usuarios.routes';
 import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
 import configuracionRoutes from './routes/configuracion.routes';
+import reportesRoutes from './routes/reportes.routes';
+import historialRoutes from './routes/historial.routes'; // 👈 1. Importación agregada
 import { CronService } from './services/cron.service';
 
 dotenv.config();
@@ -17,11 +19,14 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: [
-    'https://sgej-frontend.vercel.app',
-    'http://localhost:4200',
-    'http://localhost:22562'
-  ],
+  origin: (origin, callback) => {
+    // Permitir solicitudes sin origin (como Postman o Server-to-Server) y cualquier subdominio vercel.app o localhost
+    if (!origin || origin.endsWith('.vercel.app') || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -45,15 +50,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/documentos', documentoRoutes);
 app.use('/api/expedientes', expedienteRoutes);
-
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
 app.use('/api/configuracion', configuracionRoutes);
 app.use('/api/expedientes', expedienteRoutes);
+app.use('/api/reportes', reportesRoutes);
+
+// 👈 2. Ruta del Historial registrada
+app.use('/api/historial', historialRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
- 
+  
   // Encendemos el motor de tareas automáticas
   CronService.iniciarTareasProgramadas();
 });

@@ -122,16 +122,17 @@ export const postCita = async (
   res: Response
 ) => {
   try {
-    // 1. Tu lógica original para crear la cita
-    const nuevaCita = await crearCita(req.body);
+    const usuario = req.usuario;
+    if (!usuario) {
+      return res.status(401).json({ mensaje: 'Usuario no autenticado' });
+    }
 
-    // 2. NUEVO: Disparar la notificación
-    // Nos aseguramos de que la cita esté asociada a un expediente antes de notificar
+    // 1. Pasamos el body y el id_autor al servicio
+    const nuevaCita = await crearCita(req.body, usuario.id_usuario);
+
+    // 2. Disparar la notificación (Tu lógica original)
     if (nuevaCita.id_expediente) {
-      // Formateamos la fecha para que se vea bien en el texto
       const fechaFormateada = new Date(nuevaCita.fecha).toLocaleDateString('es-ES');
-      
-      // Llamamos a nuestro servicio de notificaciones sin bloquear la respuesta al usuario
       await NotificationService.notificarEventoExpediente(
         nuevaCita.id_expediente,
         'Nueva Cita Agendada',
@@ -141,7 +142,6 @@ export const postCita = async (
       );
     }
 
-    // 3. Tu respuesta original al cliente
     return res.status(201).json({
       mensaje: 'Cita creada correctamente',
       cita: nuevaCita
@@ -149,9 +149,7 @@ export const postCita = async (
 
   } catch (error) {
     console.error('Error al crear la cita:', error);
-    return res.status(500).json({
-      mensaje: 'Error al crear la cita'
-    });
+    return res.status(500).json({ mensaje: 'Error al crear la cita' });
   }
 };
 
@@ -161,16 +159,16 @@ export const putCita = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-
   try {
+    const usuario = req.usuario;
+    if (!usuario) {
+      return res.status(401).json({ mensaje: 'Usuario no autenticado' });
+    }
 
     const id = String(req.params.id);
 
-    const citaActualizada =
-      await actualizarCita(
-        id,
-        req.body
-      );
+    // Pasamos el id, el body y el id_autor al servicio
+    const citaActualizada = await actualizarCita(id, req.body, usuario.id_usuario);
 
     return res.status(200).json({
       mensaje: 'Cita actualizada correctamente',
@@ -178,18 +176,9 @@ export const putCita = async (
     });
 
   } catch (error) {
-
-    console.error(
-      'Error al actualizar la cita:',
-      error
-    );
-
-    return res.status(500).json({
-      mensaje: 'Error al actualizar la cita'
-    });
-
+    console.error('Error al actualizar la cita:', error);
+    return res.status(500).json({ mensaje: 'Error al actualizar la cita' });
   }
-
 };
 
 
@@ -198,28 +187,23 @@ export const deleteCita = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-
   try {
+    const usuario = req.usuario;
+    if (!usuario) {
+      return res.status(401).json({ mensaje: 'Usuario no autenticado' });
+    }
 
     const id = String(req.params.id);
 
-    await eliminarCita(id);
+    // Pasamos el id y el id_autor al servicio
+    await eliminarCita(id, usuario.id_usuario);
 
     return res.status(200).json({
       mensaje: 'Cita eliminada correctamente'
     });
 
   } catch (error) {
-
-    console.error(
-      'Error al eliminar la cita:',
-      error
-    );
-
-    return res.status(500).json({
-      mensaje: 'Error al eliminar la cita'
-    });
-
+    console.error('Error al eliminar la cita:', error);
+    return res.status(500).json({ mensaje: 'Error al eliminar la cita' });
   }
-
 };
