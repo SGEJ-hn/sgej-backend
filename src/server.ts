@@ -9,7 +9,8 @@ import usuarioRoutes from './routes/usuarios.routes';
 import citasRoutes from './routes/citas.routes';
 import notificationRoutes from './routes/notification.routes';
 import reportesRoutes from './routes/reportes.routes';
-import historialRoutes from './routes/historial.routes'; // 👈 1. Importación agregada
+import historialRoutes from './routes/historial.routes'; 
+import dashboardRoutes from './routes/dashboard.routes'; 
 import { CronService } from './services/cron.service';
 
 dotenv.config();
@@ -49,13 +50,11 @@ app.use('/api/expedientes', expedienteRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/notificaciones', notificationRoutes);
 app.use('/api/reportes', reportesRoutes);
-
-// 👈 2. Ruta del Historial registrada
 app.use('/api/historial', historialRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend SGEJ corriendo en http://localhost:${PORT}`);
   
-  // Encendemos el motor de tareas automáticas
   CronService.iniciarTareasProgramadas();
 });
