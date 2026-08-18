@@ -10,7 +10,7 @@ import {
 
 import {
   verificarToken,
-  soloAdministrador
+  soloPersonalLegal
 } from '../middlewares/auth';
 
 const router = Router();
@@ -33,7 +33,7 @@ router.get(
 router.post(
   '/',
   verificarToken,
-  soloAdministrador,
+  soloPersonalLegal,
   postCita
 );
 
@@ -41,7 +41,7 @@ router.post(
 router.put(
   '/:id',
   verificarToken,
-  soloAdministrador,
+  soloPersonalLegal,
   putCita
 );
 
@@ -49,7 +49,7 @@ router.put(
 router.delete(
   '/:id',
   verificarToken,
-  soloAdministrador,
+  soloPersonalLegal,
   deleteCita
 );
 

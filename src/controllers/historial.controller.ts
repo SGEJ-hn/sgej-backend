@@ -1,15 +1,10 @@
-import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pkg from 'pg';
-
-const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { Response } from 'express';
+import { prisma } from '../config/db';
+import { AuthenticatedRequest } from '../middlewares/auth';
+import { filtroLecturaExpedientes } from '../utils/expediente-access';
 
 
-export const obtenerHistorialExpediente = async (req: Request, res: Response) => {
+export const obtenerHistorialExpediente = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id_expediente } = req.params as { id_expediente: string };
     const { categoria } = req.query as { categoria?: string };
@@ -21,6 +16,14 @@ export const obtenerHistorialExpediente = async (req: Request, res: Response) =>
 
     if (!id_expediente) {
       return res.status(400).json({ error: 'El id_expediente es requerido.' });
+    }
+
+    const filtroAcceso = req.usuario ? filtroLecturaExpedientes(req.usuario) : null;
+    const expedienteAutorizado = filtroAcceso && await prisma.expediente.findFirst({
+      where: { id_expediente, ...filtroAcceso }, select: { id_expediente: true }
+    });
+    if (!expedienteAutorizado) {
+      return res.status(403).json({ error: 'No tiene permisos para consultar el historial de este expediente.' });
     }
 
     const dondeFiltro: any = { id_expediente };

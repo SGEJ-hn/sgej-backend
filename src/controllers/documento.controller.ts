@@ -1,15 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { supabase } from '../config/storage';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pkg from 'pg';
+import { prisma } from '../config/db';
+import { AuthenticatedRequest } from '../middlewares/auth';
+import { filtroGestionExpedientes, filtroLecturaExpedientes } from '../utils/expediente-access';
 
 import { registrarEventoHistorial } from '../services/historial.service';
-
-const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 const sanitizeFilename = (filename: string): string => {
   return filename
@@ -19,17 +14,18 @@ const sanitizeFilename = (filename: string): string => {
 };
 
 // Función auxiliar segura para extraer el ID del usuario
-const obtenerIdUsuario = (req: Request): string | null => {
-  const reqAny = req as any;
-  return (
-    reqAny.usuario?.id_usuario ||
-    reqAny.user?.id_usuario ||
-    reqAny.body?.id_autor ||
-    null
-  );
+const obtenerIdUsuario = (req: AuthenticatedRequest): string | null => req.usuario?.id_usuario ?? null;
+
+const tieneAccesoExpediente = async (req: AuthenticatedRequest, id_expediente: string, requiereGestion: boolean) => {
+  if (!req.usuario) return false;
+  const filtro = requiereGestion ? filtroGestionExpedientes(req.usuario) : filtroLecturaExpedientes(req.usuario);
+  if (!filtro) return false;
+  return Boolean(await prisma.expediente.findFirst({
+    where: { id_expediente, ...filtro }, select: { id_expediente: true }
+  }));
 };
 
-export const subirDocumento = async (req: Request, res: Response) => {
+export const subirDocumento = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const file = req.file;
     const { id_expediente, categoria, nombre_documento } = req.body;
@@ -41,6 +37,10 @@ export const subirDocumento = async (req: Request, res: Response) => {
 
     if (!id_expediente || !categoria) {
       return res.status(400).json({ error: 'id_expediente y categoria son obligatorios.' });
+    }
+
+    if (!(await tieneAccesoExpediente(req, id_expediente, true))) {
+      return res.status(403).json({ error: 'No tiene permisos para subir documentos a este expediente.' });
     }
 
     const cleanOriginalName = sanitizeFilename(file.originalname);
@@ -102,7 +102,7 @@ export const subirDocumento = async (req: Request, res: Response) => {
   }
 };
 
-export const obtenerDocumentosPorExpediente = async (req: Request, res: Response) => {
+export const obtenerDocumentosPorExpediente = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id_expediente } = req.params as { id_expediente: string };
     
@@ -113,6 +113,10 @@ export const obtenerDocumentosPorExpediente = async (req: Request, res: Response
 
     if (!id_expediente) {
       return res.status(400).json({ error: 'El id_expediente es obligatorio.' });
+    }
+
+    if (!(await tieneAccesoExpediente(req, id_expediente, false))) {
+      return res.status(403).json({ error: 'No tiene permisos para consultar documentos de este expediente.' });
     }
 
     const dondeFiltro: any = {
@@ -169,7 +173,7 @@ export const obtenerDocumentosPorExpediente = async (req: Request, res: Response
   }
 };
 
-export const eliminarDocumento = async (req: Request, res: Response) => {
+export const eliminarDocumento = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id_documento } = req.params as { id_documento: string };
     const id_autor = obtenerIdUsuario(req);
@@ -184,6 +188,10 @@ export const eliminarDocumento = async (req: Request, res: Response) => {
 
     if (!documento) {
       return res.status(404).json({ error: 'Documento no encontrado en la base de datos.' });
+    }
+
+    if (!(await tieneAccesoExpediente(req, documento.id_expediente, true))) {
+      return res.status(403).json({ error: 'No tiene permisos para eliminar este documento.' });
     }
 
     const urlParts = documento.url_archivo.split('/expedientes_documentos/');
@@ -224,7 +232,7 @@ export const eliminarDocumento = async (req: Request, res: Response) => {
   }
 };
 
-export const actualizarDocumento = async (req: Request, res: Response) => {
+export const actualizarDocumento = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id_documento } = req.params as { id_documento: string };
     const { nombre_documento, categoria } = req.body;
@@ -232,6 +240,16 @@ export const actualizarDocumento = async (req: Request, res: Response) => {
 
     if (!id_documento) {
       return res.status(400).json({ error: 'El id_documento es obligatorio.' });
+    }
+
+    const documentoExistente = await prisma.documento.findUnique({
+      where: { id_documento }, select: { id_expediente: true }
+    });
+    if (!documentoExistente) {
+      return res.status(404).json({ error: 'Documento no encontrado.' });
+    }
+    if (!(await tieneAccesoExpediente(req, documentoExistente.id_expediente, true))) {
+      return res.status(403).json({ error: 'No tiene permisos para modificar este documento.' });
     }
 
     const documentoActualizado = await prisma.documento.update({

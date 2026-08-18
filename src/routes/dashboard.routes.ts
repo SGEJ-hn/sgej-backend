@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { getAdminDashboard } from '../controllers/dashboard.controller';
+import { getAdminDashboard, getAbogadoDashboard } from '../controllers/dashboard.controller';
 import { verificarToken } from '../middlewares/auth';
-import { soloAdmin } from '../middlewares/rbac';
+import { soloAdmin, soloAbogado } from '../middlewares/rbac';
 
 const router = Router();
 
@@ -11,4 +11,9 @@ const router = Router();
  */
 router.get('/admin', verificarToken, soloAdmin, getAdminDashboard);
 
+/* 
+ * Ruta: GET /api/dashboard/abogado
+ * Protegida con token válido y acceso exclusivo para Abogados y Paralegales
+ */
+router.get('/abogado', verificarToken, soloAbogado, getAbogadoDashboard);
 export default router;

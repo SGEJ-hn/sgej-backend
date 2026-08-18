@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middlewares/auth';
+import { filtroLecturaExpedientes } from '../utils/expediente-access';
 
 // ─────────────────────────────────────────────
 // POST /api/expedientes
@@ -28,9 +29,9 @@ export const createExpediente = async (
             cuantia_litigio,
             fecha_apertura,
             descripcion_hechos,
-            equipo,                // <-- Recibimos el arreglo de equipo
-            partes,                // <-- Recibimos las partes enviadas desde Angular
-            partes_involucradas    // <-- Soporte alternativo de nombre
+            equipo,                
+            partes,               
+            partes_involucradas   
         } = req.body;
 
         const listaPartes = partes || partes_involucradas;
@@ -104,7 +105,7 @@ export const createExpediente = async (
                 },
                 equipo: {
                     include: {
-                        user: { select: { id_usuario: true, nombre: true, rol: true } },
+                        user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
                     },
                 },
                 partes_involucradas: true,
@@ -140,16 +141,8 @@ export const getExpedientes = async (
             buscar?: string;
         };
 
-        // Filtro de seguridad según el rol
-        let filtroUsuario = {};
-
-        if (usuario.rol === 'Abogado' || usuario.rol === 'Paralegal') {
-            filtroUsuario = {
-                equipo: {
-                    some: { id_usuario: usuario.id_usuario },
-                },
-            };
-        } else if (usuario.rol !== 'Administrador') {
+        const filtroUsuario = filtroLecturaExpedientes(usuario);
+        if (!filtroUsuario) {
             res.status(403).json({ error: 'No tiene permisos para consultar los expedientes.' });
             return;
         }
@@ -173,7 +166,7 @@ export const getExpedientes = async (
                 },
                 equipo: {
                     include: {
-                        user: { select: { id_usuario: true, nombre: true, rol: true } },
+                        user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
                     },
                 },
                 partes_involucradas: true, // Listado devuelve Demandante/Demandado
@@ -206,15 +199,8 @@ export const getExpediente = async (
 
         const { id } = req.params as { id: string };
 
-        let filtroUsuario = {};
-
-        if (usuario.rol === 'Abogado' || usuario.rol === 'Paralegal') {
-            filtroUsuario = {
-                equipo: {
-                    some: { id_usuario: usuario.id_usuario },
-                },
-            };
-        } else if (usuario.rol !== 'Administrador') {
+        const filtroUsuario = filtroLecturaExpedientes(usuario);
+        if (!filtroUsuario) {
             res.status(403).json({ error: 'No tiene permisos para consultar este expediente.' });
             return;
         }
@@ -228,7 +214,7 @@ export const getExpediente = async (
                 cliente: { select: { id_usuario: true, nombre: true, correo: true } },
                 equipo: {
                     include: {
-                        user: { select: { id_usuario: true, nombre: true, rol: true } },
+                        user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
                     },
                 },
                 partes_involucradas: true,
@@ -324,7 +310,7 @@ export const updateExpediente = async (
                 cliente: { select: { id_usuario: true, nombre: true, correo: true } },
                 equipo: {
                     include: {
-                        user: { select: { id_usuario: true, nombre: true, rol: true } },
+                        user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
                     },
                 },
                 partes_involucradas: true,

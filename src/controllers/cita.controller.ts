@@ -10,6 +10,18 @@ import {
 
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { NotificationService } from '../services/notification.service';
+import { prisma } from '../config/db';
+import { filtroGestionExpedientes } from '../utils/expediente-access';
+
+const puedeGestionarExpediente = async (req: AuthenticatedRequest, idExpediente?: string | null) => {
+  if (!idExpediente) return true;
+  if (!req.usuario) return false;
+  const filtro = filtroGestionExpedientes(req.usuario);
+  if (!filtro) return false;
+  return Boolean(await prisma.expediente.findFirst({
+    where: { id_expediente: idExpediente, ...filtro }, select: { id_expediente: true }
+  }));
+};
 
 
 // Obtener citas
@@ -21,13 +33,6 @@ export const getCitas = async (
   try {
 
     const usuario = req.usuario;
-
-    // Prueba del usuario recibido
-    console.log('==============================');
-    console.log('USUARIO DEL TOKEN:', usuario);
-    console.log('ROL DEL TOKEN:', usuario?.rol);
-    console.log('ID DEL USUARIO:', usuario?.id_usuario);
-    console.log('==============================');
 
     if (!usuario) {
 
@@ -41,10 +46,6 @@ export const getCitas = async (
       usuario.id_usuario,
       usuario.rol
     );
-
-    // Prueba de las citas encontradas
-    console.log('CITAS ENCONTRADAS:', citas.length);
-    console.log('CITAS:', citas);
 
     return res.status(200).json(citas);
 
@@ -127,6 +128,10 @@ export const postCita = async (
       return res.status(401).json({ mensaje: 'Usuario no autenticado' });
     }
 
+    if (!(await puedeGestionarExpediente(req, req.body.id_expediente))) {
+      return res.status(403).json({ mensaje: 'No tiene permisos para crear citas en este expediente.' });
+    }
+
     // 1. Pasamos el body y el id_autor al servicio
     const nuevaCita = await crearCita(req.body, usuario.id_usuario);
 
@@ -167,6 +172,11 @@ export const putCita = async (
 
     const id = String(req.params.id);
 
+    const citaExistente = await obtenerCitaPorId(id, usuario.id_usuario, usuario.rol);
+    if (!citaExistente || !(await puedeGestionarExpediente(req, req.body.id_expediente ?? citaExistente.id_expediente))) {
+      return res.status(403).json({ mensaje: 'No tiene permisos para modificar esta cita.' });
+    }
+
     // Pasamos el id, el body y el id_autor al servicio
     const citaActualizada = await actualizarCita(id, req.body, usuario.id_usuario);
 
@@ -194,6 +204,11 @@ export const deleteCita = async (
     }
 
     const id = String(req.params.id);
+
+    const citaExistente = await obtenerCitaPorId(id, usuario.id_usuario, usuario.rol);
+    if (!citaExistente || !(await puedeGestionarExpediente(req, citaExistente.id_expediente))) {
+      return res.status(403).json({ mensaje: 'No tiene permisos para eliminar esta cita.' });
+    }
 
     // Pasamos el id y el id_autor al servicio
     await eliminarCita(id, usuario.id_usuario);

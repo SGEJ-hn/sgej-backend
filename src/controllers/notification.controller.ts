@@ -37,10 +37,15 @@ export const putMarcarLeida = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ mensaje: 'Usuario no autenticado' });
     }
 
+    const notificacion = await prisma.notificacion.findFirst({
+      where: { id_notificacion: id, id_usuario: usuario.id_usuario },
+    });
+    if (!notificacion) {
+      return res.status(404).json({ mensaje: 'Notificación no encontrada' });
+    }
+
     const notificacionActualizada = await prisma.notificacion.update({
-      where: { 
-        id_notificacion: id 
-      },
+      where: { id_notificacion: notificacion.id_notificacion },
       data: { leida: true }
     });
 
