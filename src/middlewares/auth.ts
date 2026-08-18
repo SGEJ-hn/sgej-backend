@@ -112,3 +112,20 @@ export const soloAdministrador = (
   next();
 
 };
+
+export const soloPersonalLegal = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  const rol = req.usuario?.rol?.trim().toLowerCase();
+  if (!rol) {
+    res.status(401).json({ error: 'Usuario no autenticado.' });
+    return;
+  }
+  if (!['administrador', 'admin', 'abogado', 'paralegal'].includes(rol)) {
+    res.status(403).json({ error: 'No tiene permisos para realizar esta acción.' });
+    return;
+  }
+  next();
+};

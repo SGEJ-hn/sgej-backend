@@ -1,89 +1,24 @@
 import { Router } from 'express';
-
 import {
-    createExpediente,
-    getExpedientes,
-    getExpediente,
-    updateExpediente,
-    deleteExpediente,
-    asignarUsuarioExpediente,
+  asignarUsuarioExpediente,
+  createExpediente,
+  deleteExpediente,
+  getExpediente,
+  getExpedientes,
+  updateExpediente,
 } from '../controllers/expediente.controller';
 import { obtenerHistorialExpediente } from '../controllers/historial.controller';
-
-import { verificarToken } from '../middlewares/auth';
 import { audit } from '../middlewares/audit';
+import { soloAdministrador, verificarToken } from '../middlewares/auth';
 
 const router = Router();
 
-router.post('/', verificarToken, audit, createExpediente);
-
 router.get('/', verificarToken, getExpedientes);
-
 router.get('/:id', verificarToken, getExpediente);
-// ─────────────────────────────────────────────
-// GET /api/expedientes
-// Listar expedientes
-// ─────────────────────────────────────────────
-router.get(
-    '/',
-    verificarToken,
-    getExpedientes
-);
-
-// ─────────────────────────────────────────────
-// POST /api/expedientes
-// Crear expediente
-// ─────────────────────────────────────────────
-router.post(
-    '/',
-    verificarToken,
-    audit,
-    createExpediente
-);
-
-// ─────────────────────────────────────────────
-// GET /api/expedientes/:id
-// Ver detalle de expediente
-// ─────────────────────────────────────────────
-router.get(
-    '/:id',
-    verificarToken,
-    getExpediente
-);
-
-// ─────────────────────────────────────────────
-// PUT /api/expedientes/:id
-// Actualizar expediente
-// ─────────────────────────────────────────────
-router.put(
-    '/:id',
-    verificarToken,
-    audit,
-    updateExpediente
-);
-
-// ─────────────────────────────────────────────
-// DELETE /api/expedientes/:id
-// Eliminar expediente
-// ─────────────────────────────────────────────
-router.delete(
-    '/:id',
-    verificarToken,
-    audit,
-    deleteExpediente
-);
-
-// ─────────────────────────────────────────────
-// POST /api/expedientes/:id/equipo
-// Asignar Abogado o Paralegal
-// ─────────────────────────────────────────────
-router.post(
-    '/:id/equipo',
-    verificarToken,
-    audit,
-    asignarUsuarioExpediente
-);
-
-router.get('/:id/historial',  obtenerHistorialExpediente);
+router.get('/:id/historial', verificarToken, obtenerHistorialExpediente);
+router.post('/', verificarToken, soloAdministrador, audit, createExpediente);
+router.put('/:id', verificarToken, soloAdministrador, audit, updateExpediente);
+router.delete('/:id', verificarToken, soloAdministrador, audit, deleteExpediente);
+router.post('/:id/equipo', verificarToken, soloAdministrador, audit, asignarUsuarioExpediente);
 
 export default router;

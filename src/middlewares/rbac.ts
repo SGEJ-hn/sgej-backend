@@ -43,3 +43,7 @@ export const soloAdmin = verificarRol(['Administrador']);
  * Middleware de acceso para el Equipo Legal (Administrador y Abogado)
  */
 export const soloPersonal = verificarRol(['Administrador', 'Abogado']);
+/**
+ * Middleware de acceso para Abogados y Paralegales (Dashboard específico)
+ */
+export const soloAbogado = verificarRol(['Abogado', 'Paralegal']);
