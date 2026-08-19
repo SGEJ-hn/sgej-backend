@@ -1,48 +1,43 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
-// Asegurarnos de que las variables de entorno estén cargadas
 dotenv.config();
 
-// Inicializamos Resend con la clave de tu .env (tolerante si no existe para evitar caídas del servidor)
-const apiKey = process.env.RESEND_API_KEY || 're_dummy_key_for_dev';
-
-if (!process.env.RESEND_API_KEY) {
-  console.warn('[EmailService] ⚠️ RESEND_API_KEY no configurada. Los correos no se enviarán.');
-}
-
-// Inicializamos la instancia de Resend
-const resend = new Resend(apiKey);
-
 export class EmailService {
+  // Configuración del transportador usando Mailtrap y las variables de entorno
+  private static transporter = nodemailer.createTransport({
+    host: process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io',
+    port: Number(process.env.MAILTRAP_PORT) || 2525,
+    auth: {
+      user: process.env.MAILTRAP_USER,
+      pass: process.env.MAILTRAP_PASS,
+    },
+  });
+
   /**
-   * Envía un correo electrónico estándar utilizando Resend.
-   * @param destinatario El correo del usuario (ej. cliente@correo.com)
+   * Envía un correo electrónico utilizando Nodemailer / Mailtrap
+   * @param destinatario El correo del usuario
    * @param asunto El título del correo
    * @param htmlContent El cuerpo del correo en formato HTML
    */
   static async enviarCorreoNotificacion(destinatario: string, asunto: string, htmlContent: string) {
     try {
-      if (!process.env.RESEND_API_KEY) {
-        console.warn(`[EmailService] RESEND_API_KEY no configurada en .env. Se omite el envío a ${destinatario}.`);
+      if (!process.env.MAILTRAP_USER || !process.env.MAILTRAP_PASS) {
+        console.warn(`[EmailService] ⚠️ Credenciales de Mailtrap no configuradas en .env. Omitiendo envío a ${destinatario}.`);
         return null;
       }
 
-      const data = await resend.emails.send({
-        // IMPORTANTE: Mientras estés en pruebas gratuitas, Resend exige usar 'onboarding@resend.dev' como remitente.
-        // Cuando compres un dominio real, esto se cambia a algo como 'notificaciones@justiceattorneylaw.com'
-        from: 'Justice Attorney Law <onboarding@resend.dev>',
+      const info = await this.transporter.sendMail({
+        from: '"Justice Attorney Law" <no-reply@sgej.com>',
         to: destinatario,
         subject: asunto,
         html: htmlContent,
       });
 
-      console.log(`[EmailService] Correo enviado a ${destinatario} con éxito. ID: ${data.data?.id}`);
-      return data;
+      console.log(`[EmailService] Correo enviado a ${destinatario} con éxito en Mailtrap. ID: ${info.messageId}`);
+      return info;
     } catch (error) {
       console.error(`[EmailService] Error crítico al enviar correo a ${destinatario}:`, error);
-      // No lanzamos el error con 'throw' para evitar que el sistema principal (como subir un documento) 
-      // se bloquee o falle solo porque el correo no salió.
       return null;
     }
   }

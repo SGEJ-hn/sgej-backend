@@ -50,15 +50,18 @@ export class NotificationService {
         }
       });
 
-      // Filtramos para evitar duplicados (por si alguien es cliente y parte del equipo por error)
+      // Filtramos para evitar duplicados
       const usuariosUnicos = Array.from(new Set(usuariosANotificar.map(u => u.id_usuario)))
         .map(id => usuariosANotificar.find(u => u.id_usuario === id));
 
-      // 3. Procesar la notificación para cada usuario de forma individual
+      // Array para recolectar todos los correos en una sola lista
+      const correosAEnviar: string[] = [];
+
+      // 3. Procesar las notificaciones en la Base de Datos
       for (const usuario of usuariosUnicos) {
         if (!usuario) continue;
 
-        // A. Guardar el registro en la base de datos (Para que aparezca en la campanita)
+        // A. Guardar el registro en la base de datos (Para la campanita del sistema)
         await prisma.notificacion.create({
           data: {
             id_usuario: usuario.id_usuario,
@@ -69,14 +72,23 @@ export class NotificationService {
           }
         });
 
-        // B. Evaluar las preferencias del usuario para enviar (o no) el correo electrónico
+        // B. Si el usuario acepta correos, lo agregamos a nuestra lista
         if (usuario.recibir_alertas_correo && usuario.correo) {
-          const html = EmailService.generarPlantillaHTML(titulo, mensaje, enlace);
-          
-          // NOTA: No usamos 'await' aquí a propósito. 
-          // Queremos que el correo se envíe en segundo plano para que el sistema siga rápido
-          // y no haga esperar al usuario mientras Resend procesa el email.
-          EmailService.enviarCorreoNotificacion(usuario.correo, titulo, html);
+          correosAEnviar.push(usuario.correo);
+        }
+      }
+
+      // 4. Enviar UN SOLO correo a múltiples destinatarios (Adiós límite de Mailtrap)
+      if (correosAEnviar.length > 0) {
+        const html = EmailService.generarPlantillaHTML(titulo, mensaje, enlace);
+        
+        // Unimos los correos con comas (ej: "admin@gmail.com, pedro@gmail.com")
+        const listaDestinatarios = correosAEnviar.join(', ');
+        
+        try {
+          await EmailService.enviarCorreoNotificacion(listaDestinatarios, titulo, html);
+        } catch (err) {
+          console.error('[NotificationService] Error al enviar el correo masivo:', err);
         }
       }
 

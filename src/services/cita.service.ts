@@ -161,11 +161,10 @@ export const obtenerCitaPorId = async (
 // Crear cita
 export const crearCita = async (
   data: any,
-  idAutor: string // 👈 Recibimos el autor
+  idAutor: string
 ) => {
-  // Usamos una transacción para asegurar que ambas cosas se guarden juntas
   return await prisma.$transaction(async (tx) => {
-    // 1. Creamos la cita
+    // 1. Creamos la cita e insertamos los participantes de forma anidada
     const nuevaCita = await tx.cita.create({
       data: {
         id_expediente: data.id_expediente || null,
@@ -176,17 +175,27 @@ export const crearCita = async (
         hora_inicio: new Date(`1970-01-01T${data.hora_inicio}`),
         duracion_estimada: data.duracion_estimada || null,
         notas_recordatorio: data.notas_recordatorio || null,
-        recordatorio_automatico: data.recordatorio_automatico ?? true
+        recordatorio_automatico: data.recordatorio_automatico ?? true,
+        // 🔥 GUARDAR PARTICIPANTES EN LA TABLA CitaParticipante 🔥
+        participantes: Array.isArray(data.participantes) && data.participantes.length > 0 ? {
+          create: data.participantes.map((nombre: string) => ({
+            nombre_participante: nombre
+          }))
+        } : undefined
+      },
+      include: {
+        participantes: true,
+        expediente: true
       }
     });
 
-    // 2. Si la cita pertenece a un expediente, registramos el historial
+    // 2. Registramos el historial si hay expediente
     if (nuevaCita.id_expediente) {
       await tx.historialExpediente.create({
         data: {
           id_expediente: nuevaCita.id_expediente,
           id_autor: idAutor,
-          categoria_evento: 'Citas', // Puedes cambiarlo a 'Cita' si lo prefieres
+          categoria_evento: 'Citas',
           titulo_evento: 'Nueva cita programada',
           descripcion: `Se programó: ${nuevaCita.tipo_cita} - "${nuevaCita.titulo}" en ${nuevaCita.lugar_sala}.`,
         }
@@ -202,10 +211,26 @@ export const crearCita = async (
 export const actualizarCita = async (
   id: string,
   data: any,
-  idAutor: string // 👈 Recibimos el autor
+  idAutor: string
 ) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Actualizamos la cita
+    // 🔥 1. Si vienen participantes, eliminamos los anteriores y reinsertamos los nuevos 🔥
+    if (Array.isArray(data.participantes)) {
+      await tx.citaParticipante.deleteMany({
+        where: { id_cita: id }
+      });
+
+      if (data.participantes.length > 0) {
+        await tx.citaParticipante.createMany({
+          data: data.participantes.map((nombre: string) => ({
+            id_cita: id,
+            nombre_participante: nombre
+          }))
+        });
+      }
+    }
+
+    // 2. Actualizamos la cita
     const citaActualizada = await tx.cita.update({
       where: { id_cita: id },
       data: {
@@ -218,10 +243,14 @@ export const actualizarCita = async (
         duracion_estimada: data.duracion_estimada,
         notas_recordatorio: data.notas_recordatorio,
         recordatorio_automatico: data.recordatorio_automatico
+      },
+      include: {
+        participantes: true,
+        expediente: true
       }
     });
 
-    // 2. Registramos la edición en el historial
+    // 3. Registramos en el historial
     if (citaActualizada.id_expediente) {
       await tx.historialExpediente.create({
         data: {

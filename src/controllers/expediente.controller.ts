@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { filtroLecturaExpedientes } from '../utils/expediente-access';
+import { NotificationService } from '../services/notification.service'; // 🔥 IMPORTAMOS EL SERVICIO DE NOTIFICACIONES
 
 // ─────────────────────────────────────────────
 // POST /api/expedientes
@@ -111,6 +112,15 @@ export const createExpediente = async (
                 partes_involucradas: true,
             },
         });
+
+        // 🔥 NOTIFICACIÓN 1: Creación de expediente
+        // Hacemos el envío de forma asíncrona sin bloquear la respuesta del servidor
+        NotificationService.notificarEventoExpediente(
+            expediente.id_expediente,
+            'Nuevo Expediente Aperturado',
+            `Se ha creado el expediente ${numero_expediente} correspondiente a la materia de ${materia}.`,
+            'expediente'
+        ).catch(err => console.error("Error al notificar creación de expediente:", err));
 
         res.status(201).json({ message: 'Expediente creado exitosamente.', expediente });
     } catch (error) {
@@ -243,17 +253,13 @@ export const getExpediente = async (
     }
 };
 
-// ─────────────────────────────────────────────
 // PUT /api/expedientes/:id
-// Actualizar un expediente
-// ─────────────────────────────────────────────
 export const updateExpediente = async (
     req: AuthenticatedRequest,
     res: Response
 ): Promise<void> => {
     try {
         const usuario = req.usuario;
-
         if (!usuario) {
             res.status(401).json({ error: 'Usuario no autenticado.' });
             return;
@@ -263,25 +269,18 @@ export const updateExpediente = async (
 
         let filtroUsuario = {};
         if (usuario.rol === 'Abogado' || usuario.rol === 'Paralegal') {
-            filtroUsuario = {
-                equipo: {
-                    some: { id_usuario: usuario.id_usuario },
-                },
-            };
+            filtroUsuario = { equipo: { some: { id_usuario: usuario.id_usuario } } };
         } else if (usuario.rol !== 'Administrador') {
             res.status(403).json({ error: 'No tiene permisos para modificar expedientes.' });
             return;
         }
 
         const existente = await prisma.expediente.findFirst({
-            where: {
-                id_expediente: id,
-                ...filtroUsuario,
-            },
+            where: { id_expediente: id, ...filtroUsuario },
         });
 
         if (!existente) {
-            res.status(404).json({ error: 'Expediente no encontrado o no tiene permisos para modificarlo.' });
+            res.status(404).json({ error: 'Expediente no encontrado o sin permisos.' });
             return;
         }
 
@@ -293,7 +292,12 @@ export const updateExpediente = async (
             cuantia_litigio,
             fecha_apertura,
             descripcion_hechos,
+            equipo,
+            partes,
+            partes_involucradas
         } = req.body;
+
+        const listaPartes = partes_involucradas || partes;
 
         const expediente = await prisma.expediente.update({
             where: { id_expediente: id },
@@ -302,20 +306,51 @@ export const updateExpediente = async (
                 ...(estado !== undefined && { estado }),
                 ...(tribunal_juzgado !== undefined && { tribunal_juzgado }),
                 ...(juez_cargo !== undefined && { juez_cargo }),
-                ...(cuantia_litigio !== undefined && { cuantia_litigio }),
+                ...(cuantia_litigio !== undefined && { cuantia_litigio: cuantia_litigio ? Number(cuantia_litigio) : null }),
                 ...(fecha_apertura !== undefined && { fecha_apertura: new Date(fecha_apertura) }),
                 ...(descripcion_hechos !== undefined && { descripcion_hechos }),
+
+                // Reemplazo e inserción de partes involucradas
+                ...(listaPartes && {
+                    partes_involucradas: {
+                        deleteMany: {},
+                        create: listaPartes.map((p: any) => ({
+                            clasificacion: p.clasificacion,
+                            tipo_persona: p.tipo_persona || 'Física',
+                            nombre_completo: p.nombre_completo,
+                            identificacion: p.identificacion ?? null,
+                            correo_contacto: p.correo_contacto ?? null,
+                            direccion: p.direccion ?? null
+                        }))
+                    }
+                }),
+
+                // Reemplazo e inserción de integrantes del equipo
+                ...(equipo && {
+                    equipo: {
+                        deleteMany: {},
+                        create: equipo.map((m: any) => ({
+                            id_usuario: m.id_usuario,
+                            rol_en_caso: m.rol_en_caso
+                        }))
+                    }
+                })
             },
             include: {
                 cliente: { select: { id_usuario: true, nombre: true, correo: true } },
                 equipo: {
-                    include: {
-                        user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
-                    },
+                    include: { user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } } },
                 },
                 partes_involucradas: true,
             },
         });
+
+        NotificationService.notificarEventoExpediente(
+            expediente.id_expediente,
+            'Actualización en su Expediente',
+            `Se han realizado actualizaciones en la información del expediente ${existente.numero_expediente}.`,
+            'estado'
+        ).catch(err => console.error("Error al notificar actualización:", err));
 
         res.json({ message: 'Expediente actualizado exitosamente.', expediente });
     } catch (error) {
@@ -463,6 +498,14 @@ export const asignarUsuarioExpediente = async (
                 },
             },
         });
+
+        // 🔥 NOTIFICACIÓN 3: Asignación de equipo
+        NotificationService.notificarEventoExpediente(
+            asignacion.id_expediente,
+            'Nuevo Integrante en el Equipo',
+            `Se ha asignado a ${usuarioAsignar.nombre} con el rol de ${rol_en_caso} para el expediente ${expediente.numero_expediente}.`,
+            'equipo'
+        ).catch(err => console.error("Error al notificar asignación de equipo:", err));
 
         res.status(201).json({ message: 'Usuario asignado al expediente exitosamente.', asignacion });
     } catch (error) {

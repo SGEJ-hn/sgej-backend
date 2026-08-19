@@ -58,4 +58,31 @@ export const putMarcarLeida = async (req: AuthenticatedRequest, res: Response) =
     console.error('Error al actualizar notificación:', error);
     return res.status(500).json({ mensaje: 'Error al actualizar notificación' });
   }
+  
+};
+
+export const marcarTodasComoLeidas = async (
+    req: AuthenticatedRequest, 
+    res: Response
+): Promise<void> => {
+    try {
+        const usuario = req.usuario;
+        if (!usuario) {
+            res.status(401).json({ error: 'No autenticado' });
+            return;
+        }
+
+        await prisma.notificacion.updateMany({
+            where: { 
+                id_usuario: usuario.id_usuario,
+                leida: false
+            },
+            data: { leida: true }
+        });
+
+        res.json({ message: 'Todas las notificaciones han sido leídas.' });
+    } catch (error) {
+        console.error('Error al marcar todas como leídas:', error);
+        res.status(500).json({ error: 'Error del servidor.' });
+    }
 };

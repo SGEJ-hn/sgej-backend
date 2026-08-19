@@ -159,7 +159,6 @@ export const postCita = async (
 };
 
 
-// Actualizar cita
 export const putCita = async (
   req: AuthenticatedRequest,
   res: Response
@@ -177,8 +176,19 @@ export const putCita = async (
       return res.status(403).json({ mensaje: 'No tiene permisos para modificar esta cita.' });
     }
 
-    // Pasamos el id, el body y el id_autor al servicio
     const citaActualizada = await actualizarCita(id, req.body, usuario.id_usuario);
+
+    // 🔔 DISPARAR NOTIFICACIÓN DE ACTUALIZACIÓN
+    if (citaActualizada.id_expediente) {
+      const fechaFormateada = new Date(citaActualizada.fecha).toLocaleDateString('es-ES');
+      await NotificationService.notificarEventoExpediente(
+        citaActualizada.id_expediente,
+        'Cita Modificada',
+        `Se han actualizado los detalles de la cita "${citaActualizada.titulo}" (Fecha: ${fechaFormateada}, Lugar: ${citaActualizada.lugar_sala}).`,
+        'cita',
+        `/expedientes/${citaActualizada.id_expediente}/citas`
+      );
+    }
 
     return res.status(200).json({
       mensaje: 'Cita actualizada correctamente',
@@ -192,7 +202,6 @@ export const putCita = async (
 };
 
 
-// Eliminar cita
 export const deleteCita = async (
   req: AuthenticatedRequest,
   res: Response
@@ -210,8 +219,19 @@ export const deleteCita = async (
       return res.status(403).json({ mensaje: 'No tiene permisos para eliminar esta cita.' });
     }
 
-    // Pasamos el id y el id_autor al servicio
+    // Eliminamos la cita
     await eliminarCita(id, usuario.id_usuario);
+
+    // 🔔 DISPARAR NOTIFICACIÓN DE ELIMINACIÓN
+    if (citaExistente.id_expediente) {
+      await NotificationService.notificarEventoExpediente(
+        citaExistente.id_expediente,
+        'Cita Cancelada',
+        `La cita "${citaExistente.titulo}" asociada al expediente ha sido cancelada.`,
+        'alerta',
+        `/expedientes/${citaExistente.id_expediente}/citas`
+      );
+    }
 
     return res.status(200).json({
       mensaje: 'Cita eliminada correctamente'
