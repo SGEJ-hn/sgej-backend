@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   obtenerUsuarios,
   obtenerUsuarioPorId,
+  obtenerUsuariosPaginados,
   crearUsuario,
   actualizarUsuario,
   eliminarUsuario,
@@ -18,6 +19,9 @@ const router = Router();
 
 // GET /api/usuarios -> Listar todos los usuarios
 router.get('/', verificarToken, soloAdmin, obtenerUsuarios);
+
+// GET /api/usuarios/paginados -> Listar con paginación (NUEVO)
+router.get('/paginados', verificarToken, soloAdmin, obtenerUsuariosPaginados);
 
 // GET /api/usuarios/:id -> Consultar un usuario específico por ID
 router.get('/:id', verificarToken, soloAdmin, obtenerUsuarioPorId);

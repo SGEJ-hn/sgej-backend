@@ -131,7 +131,7 @@ export const createExpediente = async (
 
 // ─────────────────────────────────────────────
 // GET /api/expedientes
-// Listar expedientes según el usuario
+// Listar expedientes según el usuario (Paginado)
 // ─────────────────────────────────────────────
 export const getExpedientes = async (
     req: AuthenticatedRequest,
@@ -145,6 +145,11 @@ export const getExpedientes = async (
             return;
         }
 
+        // 1. Extraer parámetros de paginación y búsqueda
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 8; // Límite solicitado
+        const skip = (page - 1) * limit;
+
         const { estado, materia, buscar } = req.query as {
             estado?: string;
             materia?: string;
@@ -157,19 +162,31 @@ export const getExpedientes = async (
             return;
         }
 
+        // 2. Construir el objeto de filtros
+        const dondeFiltro: any = {
+            ...filtroUsuario,
+            ...(estado ? { estado: String(estado) } : {}),
+            ...(materia ? { materia: String(materia) } : {}),
+            ...(buscar ? {
+                OR: [
+                    { numero_expediente: { contains: String(buscar), mode: 'insensitive' } },
+                    { tribunal_juzgado: { contains: String(buscar), mode: 'insensitive' } },
+                    { descripcion_hechos: { contains: String(buscar), mode: 'insensitive' } },
+                ],
+            } : {}),
+        };
+
+        // 3. Contar el total de registros para calcular las páginas
+        const totalRegistros = await prisma.expediente.count({
+            where: dondeFiltro,
+        });
+        const totalPaginas = Math.ceil(totalRegistros / limit);
+
+        // 4. Obtener los expedientes paginados
         const expedientes = await prisma.expediente.findMany({
-            where: {
-                ...filtroUsuario,
-                ...(estado ? { estado: String(estado) } : {}),
-                ...(materia ? { materia: String(materia) } : {}),
-                ...(buscar ? {
-                    OR: [
-                        { numero_expediente: { contains: String(buscar), mode: 'insensitive' } },
-                        { tribunal_juzgado: { contains: String(buscar), mode: 'insensitive' } },
-                        { descripcion_hechos: { contains: String(buscar), mode: 'insensitive' } },
-                    ],
-                } : {}),
-            },
+            where: dondeFiltro,
+            skip: skip,
+            take: limit,
             include: {
                 cliente: {
                     select: { id_usuario: true, nombre: true, correo: true },
@@ -179,12 +196,18 @@ export const getExpedientes = async (
                         user: { select: { id_usuario: true, nombre: true, rol: true, correo: true } },
                     },
                 },
-                partes_involucradas: true, // Listado devuelve Demandante/Demandado
+                partes_involucradas: true,
             },
             orderBy: { fecha_apertura: 'desc' },
         });
 
-        res.json({ total: expedientes.length, expedientes });
+        // 5. Retornar la respuesta estructurada
+        res.json({
+            total: totalRegistros,
+            total_paginas: totalPaginas,
+            pagina_actual: page,
+            expedientes
+        });
     } catch (error) {
         console.error('Error al listar expedientes:', error);
         res.status(500).json({ error: 'Error interno del servidor al obtener los expedientes.' });

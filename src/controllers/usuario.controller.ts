@@ -206,3 +206,51 @@ export const eliminarUsuario = async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'No se puede eliminar el usuario si posee registros asociados (expedientes, historial o citas).' });
   }
 };
+
+export const obtenerUsuariosPaginados = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 8;
+    const skip = (page - 1) * limit;
+
+    const { rol, estado, busqueda } = req.query as { rol?: string; estado?: string; busqueda?: string };
+    const whereClause: any = {};
+
+    if (rol) whereClause.rol = String(rol);
+    if (estado) whereClause.estado = String(estado);
+    if (busqueda) {
+      whereClause.OR = [
+        { nombre: { contains: String(busqueda), mode: 'insensitive' } },
+        { correo: { contains: String(busqueda), mode: 'insensitive' } },
+      ];
+    }
+
+    // Usamos una transacción de Prisma para hacer todos los conteos al mismo tiempo y optimizar
+    const [totalRegistros, totalActivos, totalInactivos, usuarios] = await prisma.$transaction([
+      prisma.usuario.count({ where: whereClause }),
+      prisma.usuario.count({ where: { ...whereClause, estado: 'Activo' } }),
+      prisma.usuario.count({ where: { ...whereClause, estado: 'Inactivo' } }),
+      prisma.usuario.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        select: { id_usuario: true, nombre: true, correo: true, rol: true, estado: true, ultimo_acceso: true },
+        orderBy: { nombre: 'asc' },
+      })
+    ]);
+
+    const totalPaginas = Math.ceil(totalRegistros / limit);
+
+    res.json({
+      total: totalRegistros,
+      total_activos: totalActivos, // <- Nuevo dato global
+      total_inactivos: totalInactivos, // <- Nuevo dato global
+      total_paginas: totalPaginas,
+      pagina_actual: page,
+      usuarios,
+    });
+  } catch (error) {
+    console.error('Error al obtener usuarios paginados:', error);
+    res.status(500).json({ error: 'Error al consultar el listado de usuarios' });
+  }
+};
