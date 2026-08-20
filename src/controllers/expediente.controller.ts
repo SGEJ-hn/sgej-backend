@@ -198,7 +198,7 @@ export const getExpedientes = async (
                 },
                 partes_involucradas: true,
             },
-            orderBy: { fecha_apertura: 'desc' },
+            orderBy: { fecha_apertura: 'asc' },
         });
 
         // 5. Retornar la respuesta estructurada
