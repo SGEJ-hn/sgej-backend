@@ -34,8 +34,8 @@ model Usuario {
   rol           String    @db.VarChar(50)
   estado        String    @db.VarChar(30)
   ultimo_acceso DateTime?
-
-  // --- NUEVAS COLUMNAS PARA PREFERENCIAS DE CORREO ---
+  reset_token         String?   @db.VarChar(255)
+  reset_token_expires DateTime?
   recibir_alertas_correo Boolean @default(true)
   recibir_boletines      Boolean @default(false)
 
@@ -43,8 +43,6 @@ model Usuario {
   equipo_asignado      ExpedienteEquipo[]
   historial_acciones   HistorialExpediente[]
   reportes_generados   ReporteGenerado[]
-  
-  // --- NUEVA RELACIÓN PARA LAS NOTIFICACIONES ---
   notificaciones       Notificacion[]
 }
 
@@ -172,6 +170,5 @@ model Notificacion {
   leida             Boolean  @default(false)
   fecha_creacion    DateTime @default(now())
 
-  // Relación con el usuario: Si se elimina el usuario, se borran sus notificaciones (Cascade)
   usuario           Usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
 }

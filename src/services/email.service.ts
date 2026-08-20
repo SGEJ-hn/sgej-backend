@@ -67,4 +67,38 @@ export class EmailService {
       </div>
     `;
   }
+
+  /**
+   * Envía el correo con el enlace para restablecer la contraseña
+   */
+  static async enviarCorreoRecuperacion(destinatario: string, token: string) {
+    // Obtenemos la URL del frontend (o usamos localhost por defecto)
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const resetLink = `${frontendUrl}/restablecer-password?token=${token}`;
+
+    const asunto = 'Recuperación de Contraseña - Justice Attorney Law';
+    
+    // Armamos un HTML específico para que el botón diga exactamente "Restablecer Contraseña"
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #4B1623; padding: 20px; text-align: center;">
+          <h1 style="color: #F3F2EE; margin: 0; font-size: 24px;">Justice Attorney Law</h1>
+        </div>
+        <div style="padding: 30px; background-color: #ffffff;">
+          <h2 style="color: #333333; margin-top: 0;">Restablecer Contraseña</h2>
+          <p style="color: #555555; font-size: 16px; line-height: 1.5;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en el portal.</p>
+          <p style="color: #555555; font-size: 16px; line-height: 1.5;">Para crear una nueva contraseña, por favor haz clic en el siguiente botón. <strong>Este enlace expirará en 15 minutos por razones de seguridad.</strong></p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #4B1623; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">Restablecer mi Contraseña</a>
+          </div>
+
+          <p style="color: #888888; font-size: 14px; margin-top: 30px; border-top: 1px solid #eeeeee; padding-top: 20px;">Si no solicitaste este cambio, puedes ignorar este correo de forma segura. Tu contraseña actual no cambiará.</p>
+        </div>
+      </div>
+    `;
+
+    // Reutilizamos tu método principal para enviarlo
+    return await this.enviarCorreoNotificacion(destinatario, asunto, htmlContent);
+  }
 }

@@ -285,6 +285,7 @@ export const updateExpediente = async (
         }
 
         const {
+            id_cliente,
             materia,
             estado,
             tribunal_juzgado,
@@ -302,6 +303,7 @@ export const updateExpediente = async (
         const expediente = await prisma.expediente.update({
             where: { id_expediente: id },
             data: {
+                ...(id_cliente !== undefined && { id_cliente }),
                 ...(materia !== undefined && { materia }),
                 ...(estado !== undefined && { estado }),
                 ...(tribunal_juzgado !== undefined && { tribunal_juzgado }),

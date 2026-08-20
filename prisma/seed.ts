@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pkg from 'pg';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -12,36 +11,26 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('Iniciando carga de datos de prueba (Seed)...');
+  console.log('🧹 Iniciando la eliminación de los expedientes...');
 
-  const passwordHash = await bcrypt.hash('12345678', 10);
+  // Eliminamos los datos dependientes primero para evitar errores de claves foráneas
+  await prisma.historialExpediente.deleteMany();
+  await prisma.documento.deleteMany();
+  await prisma.citaParticipante.deleteMany();
+  await prisma.cita.deleteMany();
+  await prisma.parteInvolucrada.deleteMany();
+  await prisma.expedienteEquipo.deleteMany();
 
-  // Usuario Administrador principal
-  const admin = await prisma.usuario.upsert({
-    where: { correo: 'admin@gmail.com' },
-    update: {
-      nombre: 'Administrador',
-      contrasena: passwordHash,
-      rol: 'Administrador',
-      estado: 'Activo',
-    },
-    create: {
-      nombre: 'Administrador',
-      correo: 'admin@gmail.com',
-      contrasena: passwordHash,
-      rol: 'Administrador',
-      estado: 'Activo',
-    },
-  });
+  // Finalmente, eliminamos todos los expedientes
+  const expedientesBorrados = await prisma.expediente.deleteMany();
 
-  console.log('✅ Usuario Administrador cargado exitosamente:');
-  console.log(' - Correo:', admin.correo);
-  console.log(' - Rol:', admin.rol);
+  console.log(`✅ ¡Éxito! Se eliminaron ${expedientesBorrados.count} expedientes y todos sus datos relacionados.`);
+  console.log('👥 (Tus usuarios siguen intactos en la base de datos).');
 }
 
 main()
   .catch((e) => {
-    console.error('Error durante el seed:', e);
+    console.error('❌ Error durante la limpieza de expedientes:', e);
     process.exit(1);
   })
   .finally(async () => {
